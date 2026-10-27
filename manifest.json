@@ -4,7 +4,7 @@
   "manifest_version": 1,
   "action": {
     "title": "Конструктор Персонажей",
-    "icon": "data:image/svg+xml;utf8,<svg xmlns='http://w3.org' viewBox='0 0 24 24'><text y='20' font-size='20'>🎭</text></svg>",
+    "icon": "icon.svg",
     "popover": "index.html",
     "height": 600,
     "width": 400
