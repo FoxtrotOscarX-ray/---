@@ -4,8 +4,8 @@
   "manifest_version": 1,
   "action": {
     "title": "Конструктор Персонажей",
-    "icon": "https://github.io",
-    "popover": "https://github.io",
+    "icon": "https://jsdelivr.net",
+    "popover": "https://jsdelivr.net",
     "height": 600,
     "width": 400
   }
