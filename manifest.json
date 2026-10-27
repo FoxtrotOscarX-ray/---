@@ -4,8 +4,8 @@
   "manifest_version": 1,
   "action": {
     "title": "Конструктор Персонажей",
-    "icon": "https://githubusercontent.com",
-    "popover": "https://githubusercontent.com",
+    "icon": "https://github.io",
+    "popover": "https://github.io",
     "height": 600,
     "width": 400
   }
