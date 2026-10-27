@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Конструктор Персонажей</title>
+  <!-- Подключаем SDK Owlbear и библиотеку для удобного перетаскивания и кручения картинок -->
+  <script src="https://unpkg.com"></script>
+  <script src="https://cloudflare.com"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #222;
+      color: #fff;
+      margin: 10px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 95vh;
+    }
+    h3 { margin: 5px 0; font-size: 16px; text-align: center; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    input[type="file"] { display: none; }
+    .btn {
+      flex: 1;
+      background: #4e5d6c;
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      font-weight: bold;
+    }
+    .btn:hover { background: #677c91; }
+    .btn-green { background: #28a745; }
+    .btn-green:hover { background: #218838; }
+    .canvas-container {
+      margin: 0 auto;
+      border: 2px dashed #555;
+      background: #333;
+    }
+    .hint {
+      font-size: 11px;
+      color: #aaa;
+      text-align: center;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h3>Собери своего персонажа</h3>
+  
+  <div class="controls">
+    <label class="btn">
+      📁 Загрузить части тела
+      <input type="file" id="file-loader" multiple accept="image/*">
+    </label>
+    <button class="btn btn-green" id="send-to-map">Сделать токеном</button>
+  </div>
+
+  <!-- Холст, где будет собираться коллаж -->
+  <canvas id="avatar-canvas" width="350" height="400"></canvas>
+  
+  <p class="hint">Кликните на деталь, чтобы двигать, крутить или менять её размер. Нажмите Del, чтобы удалить деталь.</p>
+
+  <script>
+    // Инициализируем интерактивный холст Fabric.js
+    const canvas = new fabric.Canvas('avatar-canvas');
+    let OB = null;
+
+    // Подключаемся к Owlbear Rodeo SDK
+    OBR.onReady(async () => {
+      OB = OBR;
+      
+      // Мастер и игроки будут синхронизировать состояние холста через метаданные комнаты
+      OBR.room.onMetadataChange((metadata) => {
+        const savedJson = metadata["custom_character_maker_data"];
+        if (savedJson && !canvas.isDrawingMode) {
+          // Если мастер или другой игрок обновил картинку, подгружаем её (исключая активный выбор, чтобы не дёргалось)
+          const activeObj = canvas.getActiveObject();
+          canvas.loadFromJSON(savedJson, () => {
+            if (activeObj) {
+              // Возвращаем фокус на деталь, которую крутил игрок
+              const newObj = canvas.getObjects().find(o => o.id === activeObj.id);
+              if (newObj) canvas.setActiveObject(newObj);
+            }
+            canvas.renderAll();
+          });
+        }
+      });
+    });
+
+    // Функция синхронизации: отправляет состояние холста мастеру в реальном времени
+    function syncCanvas() {
+      if (!OB) return;
+      const jsonState = JSON.stringify(canvas.toJSON(['id']));
+      OBR.room.setMetadata({ "custom_character_maker_data": jsonState });
+    }
+
+    // Следим за изменениями на холсте (подвинули, покрутили, масштабировали)
+    canvas.on('object:modified', syncCanvas);
+    canvas.on('object:added', () => { if(!canvas._loading) syncCanvas(); });
+    canvas.on('object:removed', syncCanvas);
+
+    // Обработка загрузки файлов картинок пользователем
+    document.getElementById('file-loader').addEventListener('change', function(e) {
+      const files = e.target.files;
+      for (let i = 0; i < files.length; i++) {
+        const reader = new FileReader();
+        reader.onload = function(f) {
+          fabric.Image.fromURL(f.target.result, function(img) {
+            img.scaleToWidth(150); // Базовый размер при появлении
+            img.set({
+              left: 100 + (i * 10),
+              top: 100 + (i * 10),
+              id: Date.now() + Math.random() // Уникальный ID для синхронизации
+            });
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+          });
+        };
+        reader.readAsDataURL(files[i]);
+      }
+    });
+
+    // Удаление выбранной детали по нажатию кнопки Delete
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const active = canvas.getActiveObject();
+        if (active) {
+          canvas.remove(active);
+          canvas.discardActiveObject();
+          canvas.renderAll();
+        }
+      }
+    });
+
+    // Кнопка: склеить всё в одну картинку и отправить на карту Owlbear Rodeo
+    document.getElementById('send-to-map').addEventListener('click', async () => {
+      if (!OB) return;
+      
+      // Снимаем выделение с деталей перед «снимком»
+      canvas.discardActiveObject();
+      canvas.renderAll();
+
+      // Генерируем финальное PNG изображение собранного персонажа
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        quality: 1
+      });
+
+      // Создаем токен в Owlbear Rodeo по центру экрана мастера/игрока
+      const item = OBR.scene.items.createImage({
+        name: "Новый Персонаж",
+        url: dataUrl,
+        mimeType: "image/png",
+        scale: { x: 1, y: 1 },
+        shape: "CIRCLE", // Можно заменить на "RECTANGLE", если хотите квадратный токен
+        layer: "CHARACTER"
+      });
+      
+      await OBR.scene.items.add([item]);
+      alert("Персонаж успешно добавлен на карту!");
+    });
+  </script>
+</body>
+</html>

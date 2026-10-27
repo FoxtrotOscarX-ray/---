@@ -1,0 +1,12 @@
+{
+  "name": "Конструктор Персонажей из Ассетов",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "tags": ["character", "maker", "token"],
+  "action": {
+    "title": "Конструктор Персонажей",
+    "popover": "index.html",
+    "height": 600,
+    "width": 400
+  }
+}
