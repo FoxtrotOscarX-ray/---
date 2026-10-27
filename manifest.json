@@ -5,6 +5,7 @@
   "tags": ["character", "maker", "token"],
   "action": {
     "title": "Конструктор Персонажей",
+    "icon": "🎭",
     "popover": "index.html",
     "height": 600,
     "width": 400
